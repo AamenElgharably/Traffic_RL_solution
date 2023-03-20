@@ -29,6 +29,7 @@ debug=True
 step_CIO=3 # CIO value step in the discrete set {-6, -3, 0, 3, 6}
 Result_row=[]
 Rew_ActIndx=[]
+power_step=5
 MCS2CQI=np.array([1,2,3,3,3,4,4,5,5,6,6,6,7,7,8,8,8,9,9,9,10,10,10,11,11,12,12,13,14])# To map MCS indexes to CQI
 
 max_env_steps = 10  #Maximum number of steps in every episode
@@ -138,7 +139,9 @@ if __name__ == "__main__":
     state_size = 12
     a_level=int(ac_space.high[0]) # CIO levels          
     a_num=int(ac_space.shape[0]) # number of required relative CIOs
-    action_size = a_level**a_num
+    p_level=int(2) #number of power levels per cell
+    m_cells=int(3) #number of cells 
+    action_size = a_level**a_num*p_level**m_cells
     agent = DDQNAgent(state_size, action_size)
     #agent.load("./LTE-DDQN.h5") 
     done = False
@@ -148,7 +151,8 @@ if __name__ == "__main__":
     reward2_list= []
     reward3_list= []
     AVG_CQI_list=[]
-
+    print("Action_size")
+    print(action_size)
 
     for e in range(EPISODES):
         state = env.reset()
@@ -182,19 +186,20 @@ if __name__ == "__main__":
 
             print("episode: {}/{}, step: {}".format(e+1, EPISODES, time))
             action_index = agent.act(state)
-            print(action_index)
-            action=np.base_repr(action_index+int(a_level)**int(a_num),base=int(a_level))[-a_num:]# decoding the action index to the action vector
-            print("action1")
-            print(action)
+            #Deconding CIO Action only
+            action=np.base_repr(int(action_index/8)+int(a_level)**int(a_num),base=int(a_level))[-a_num:]# decoding the action index to the action vector
             action=[int(action[s]) for s in range(len(action))]
-            print("action2")
-            print(action)
             action=np.concatenate((np.zeros(a_num-len(action)),action),axis=None)
-            print("action3")
-            print(action)
             action=[step_CIO*(x-np.floor(a_level/2)) for x in action]#action vector
-            print("action4")
+            #Decoding Power_action
+            power_action=np.base_repr(int(action_index/25),base=p_level)
+            #changing string into int 
+            power_action=[int(power_action[s]) for s in range(len(power_action))]
+            power_action=np.concatenate((np.zeros(m_cells-len(power_action)),power_action))
+            power_action=[20+power_step*s for s in (power_action)]#decoding power action
+            action=np.concatenate((action,power_action))
             print(action)
+            #sending action to enviroment
             next_state, reward, done, _ = env.step(action)
             if next_state is None:#To avoid crashing the simulation if the handover failiure occured in NS-3 simulation
                 OK=0 # Handover failiure occured

@@ -353,18 +353,23 @@ namespace ns3 {
         Ptr < OpenGymBoxContainer < float > > box = DynamicCast < OpenGymBoxContainer < float > > (action);
         std::vector < float > actionVector = box -> GetData();
         std::vector < double > actionVectord;
+        std::vector < double > cio_action;
+        std::vector < double > power_action;  
         for (std::vector < float > ::iterator it = actionVector.begin(); it != actionVector.end(); ++it) {
             actionVectord.push_back(double( * it));
         }
+        cio_action.push_back(double(actionVectord[0]));
+        cio_action.push_back(double(actionVectord[1]));
+        std::cout<<"cio_action[0]=="<<cio_action[0]<<std::endl;
+        std::cout<<"cio_action[1]=="<<cio_action[1]<<std::endl;
         CellIndividualOffset::setOffsetList(actionVectord);
         for(size_t it = 0; it != m_cells.GetN(); ++it)
         {
         ns3::Ptr<ns3::NetDevice> netDevice = m_cells.Get(it);
         ns3::Ptr<ns3::LteEnbNetDevice> enbNetDevice = netDevice->GetObject<LteEnbNetDevice>();
         ns3::Ptr<ns3::LteEnbPhy> enbPhy = enbNetDevice->GetPhy();
-        std::cout<<"TowerPOWer"<<enbPhy->GetTxPower()<<std::endl;    //execute energy action
-        NS_LOG_UNCOND ("node  "<< it << " tx power " << enbPhy->GetTxPower());
-        //std::cout << "node  "<< it << " tx power=  " << enbPhy->GetTxPower()<< std::endl;
+        enbPhy->SetTxPower(actionVectord[2+it]);
+        std::cout<<"TowerPOWer"<<enbPhy->GetTxPower()<<std::endl;    
         }
         return true;
     }
