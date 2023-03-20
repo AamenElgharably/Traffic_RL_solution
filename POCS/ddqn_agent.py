@@ -18,7 +18,7 @@ from tensorflow import keras
 from ns3gym import ns3env                 #for interfacing NS-3 with RL
 from keras.layers import Dense, Dropout, Activation
 import csv
-EPISODES = 20
+EPISODES = 100
 port=1122 # Should be consistent with NS-3 simulation port
 stepTime=0.2
 startSim=0
@@ -32,7 +32,7 @@ Rew_ActIndx=[]
 power_step=5
 MCS2CQI=np.array([1,2,3,3,3,4,4,5,5,6,6,6,7,7,8,8,8,9,9,9,10,10,10,11,11,12,12,13,14])# To map MCS indexes to CQI
 
-max_env_steps = 10  #Maximum number of steps in every episode
+max_env_steps = 20  #Maximum number of steps in every episode
 class DDQNAgent:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     m_cells=int(3) #number of cells 
     action_size = a_level**a_num*p_level**m_cells
     agent = DDQNAgent(state_size, action_size)
-    #agent.load("./LTE-DDQN.h5") 
+    agent.load("./LTE-DDQN.h5") 
     done = False
     batch_size = 32
     rew_history = []
@@ -151,10 +151,30 @@ if __name__ == "__main__":
     reward2_list= []
     reward3_list= []
     AVG_CQI_list=[]
-    print("Action_size")
-    print(action_size)
+    last_ep=0
+    #Reading last reward runs
+    try:
+        with open('Rewards_DDQN.csv','r') as file:
+            reader=csv.reader(file, delimiter=';')
+            read_list=[]
+            for row in reader:
+                read_list.append(row)
+            reward1_list=[float(x) for x in read_list[0]]
+            reward2_list=[float(x) for x in read_list[1]]
+            reward3_list=[float(x) for x in read_list[2]]
+            AVG_CQI_list=[float(x) for x in read_list[3]]
+            file.close()
+    except:
+        print("NO reward file")
+    #reading last Ep number
+    try:
+        x=open('Episode_num.txt','r')
+        last_ep=int(x.readline())
+        x.close()
+    except:
+        print("No last_episode file found")
 
-    for e in range(EPISODES):
+    for e in range(last_ep,EPISODES):
         state = env.reset()
         state1 = np.reshape(state['rbUtil'], [3, 1])
         state2 = np.reshape(state['dlThroughput'],[3,1])
@@ -187,7 +207,7 @@ if __name__ == "__main__":
             print("episode: {}/{}, step: {}".format(e+1, EPISODES, time))
             action_index = agent.act(state)
             #Deconding CIO Action only
-            action=np.base_repr(int(action_index/8)+int(a_level)**int(a_num),base=int(a_level))[-a_num:]# decoding the action index to the action vector
+            action=np.base_repr(int(action_index/(p_level**m_cells))+int(a_level)**int(a_num),base=int(a_level))[-a_num:]# decoding the action index to the action vector
             action=[int(action[s]) for s in range(len(action))]
             action=np.concatenate((np.zeros(a_num-len(action)),action),axis=None)
             action=[step_CIO*(x-np.floor(a_level/2)) for x in action]#action vector
@@ -266,6 +286,10 @@ if __name__ == "__main__":
             agent.update_target_model()
             if (e+1) % 10 == 0:
                 agent.save("./LTE-DDQN.h5") # Save the model
+                #Saving episods
+                x=open('Episode_num.txt','w')
+                x.write(str(e))
+                x.close()
 
                 Result_row=[]
                 with open('Rewards_' + 'DDQN' + '.csv', 'w', newline='') as rewardcsv:

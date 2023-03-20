@@ -362,13 +362,13 @@ namespace ns3 {
         cio_action.push_back(double(actionVectord[1]));
         std::cout<<"cio_action[0]=="<<cio_action[0]<<std::endl;
         std::cout<<"cio_action[1]=="<<cio_action[1]<<std::endl;
-        CellIndividualOffset::setOffsetList(actionVectord);
+        CellIndividualOffset::setOffsetList(cio_action);
         for(size_t it = 0; it != m_cells.GetN(); ++it)
         {
         ns3::Ptr<ns3::NetDevice> netDevice = m_cells.Get(it);
         ns3::Ptr<ns3::LteEnbNetDevice> enbNetDevice = netDevice->GetObject<LteEnbNetDevice>();
         ns3::Ptr<ns3::LteEnbPhy> enbPhy = enbNetDevice->GetPhy();
-        enbPhy->SetTxPower(actionVectord[2+it]);
+        enbPhy->SetTxPower(actionVectord[2+it]);//Executing
         std::cout<<"TowerPOWer"<<enbPhy->GetTxPower()<<std::endl;    
         }
         return true;
