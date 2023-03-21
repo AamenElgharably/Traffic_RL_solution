@@ -18,7 +18,7 @@ from tensorflow import keras
 from ns3gym import ns3env                 #for interfacing NS-3 with RL
 from keras.layers import Dense, Dropout, Activation
 import csv
-EPISODES = 100
+EPISODES = 200
 port=1122 # Should be consistent with NS-3 simulation port
 stepTime=0.2
 startSim=0
@@ -32,7 +32,7 @@ Rew_ActIndx=[]
 power_step=5
 MCS2CQI=np.array([1,2,3,3,3,4,4,5,5,6,6,6,7,7,8,8,8,9,9,9,10,10,10,11,11,12,12,13,14])# To map MCS indexes to CQI
 
-max_env_steps = 20  #Maximum number of steps in every episode
+max_env_steps = 50  #Maximum number of steps in every episode
 class DDQNAgent:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
@@ -143,7 +143,10 @@ if __name__ == "__main__":
     m_cells=int(3) #number of cells 
     action_size = a_level**a_num*p_level**m_cells
     agent = DDQNAgent(state_size, action_size)
-    agent.load("./LTE-DDQN.h5") 
+    try:
+        agent.load("./LTE-DDQN.h5")
+    except:
+        print("No model to load")
     done = False
     batch_size = 32
     rew_history = []
@@ -218,7 +221,6 @@ if __name__ == "__main__":
             power_action=np.concatenate((np.zeros(m_cells-len(power_action)),power_action))
             power_action=[20+power_step*s for s in (power_action)]#decoding power action
             action=np.concatenate((action,power_action))
-            print(action)
             #sending action to enviroment
             next_state, reward, done, _ = env.step(action)
             if next_state is None:#To avoid crashing the simulation if the handover failiure occured in NS-3 simulation
