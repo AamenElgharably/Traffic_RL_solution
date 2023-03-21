@@ -145,6 +145,9 @@ if __name__ == "__main__":
     agent = DDQNAgent(state_size, action_size)
     try:
         agent.load("./LTE-DDQN.h5")
+        x=open('Epsilon.txt','r')
+        agent.epsilon=float(x.readline())
+        x.close()
     except:
         print("No model to load")
     done = False
@@ -271,6 +274,7 @@ if __name__ == "__main__":
             #print("reward function 1:{}".format(R_reward1))
             #print("reward function 2:{}".format(R_reward2))
             #print("reward function 3:{}".format(R_reward3))
+            print("Epislon ="+str(agent.epsilon))
             rewardsum += reward
             cqisum+=AVG_CQI
             if len(agent.memory) > batch_size:
@@ -291,6 +295,10 @@ if __name__ == "__main__":
                 #Saving episods
                 x=open('Episode_num.txt','w')
                 x.write(str(e))
+                x.close()
+                #saving epsilon
+                x=open('Epsilon.txt','w')
+                x.write(str(agent.epsilon))
                 x.close()
 
                 Result_row=[]
