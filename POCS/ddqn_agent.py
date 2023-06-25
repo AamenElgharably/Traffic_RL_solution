@@ -185,7 +185,7 @@ if __name__ == "__main__":
         state = env.reset()
         state1 = np.reshape(state['rbUtil'], [3, 1])
         state2 = np.reshape(state['dlThroughput'],[3,1])
-        state2_norm=state2/20 # normalize with the maximium expected throughput (min-max normalization)
+        state2_norm=state2/Nf_s2 # normalize with the maximium expected throughput (min-max normalization)
         state3 = np.reshape(state['UserCount'], [3, 1])
         state3_norm=state3/Usersnum # normalize with the total number of users
         MCS_t=np.array(state['MCSPen'])
