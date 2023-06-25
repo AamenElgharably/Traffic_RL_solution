@@ -29,7 +29,8 @@ debug=True
 step_CIO=3 # CIO value step in the discrete set {-6, -3, 0, 3, 6}
 Result_row=[]
 Rew_ActIndx=[]
-power_step=5
+power_step=3
+Nf_s2=21
 MCS2CQI=np.array([1,2,3,3,3,4,4,5,5,6,6,6,7,7,8,8,8,9,9,9,10,10,10,11,11,12,12,13,14])# To map MCS indexes to CQI
 
 max_env_steps = 50  #Maximum number of steps in every episode
@@ -135,11 +136,11 @@ class DDQNAgent:
 if __name__ == "__main__":
     env = ns3env.Ns3Env(port=port, stepTime=stepTime, startSim=startSim, simSeed=seed, simArgs=simArgs, debug=debug)
     env._max_episode_steps = max_env_steps
-    ac_space = env.action_space               #Getting the action space
+    ac_space = env.action_space               #Getting the action space for CIO
     state_size = 12
     a_level=int(ac_space.high[0]) # CIO levels          
     a_num=int(ac_space.shape[0]) # number of required relative CIOs
-    p_level=int(2) #number of power levels per cell
+    p_level=int(2) #number of power levels per cell {30 , 33}
     m_cells=int(3) #number of cells 
     action_size = a_level**a_num*p_level**m_cells
     agent = DDQNAgent(state_size, action_size)
@@ -184,7 +185,7 @@ if __name__ == "__main__":
         state = env.reset()
         state1 = np.reshape(state['rbUtil'], [3, 1])
         state2 = np.reshape(state['dlThroughput'],[3,1])
-        state2_norm=state2/18 # normalize with the maximium expected throughput (min-max normalization)
+        state2_norm=state2/20 # normalize with the maximium expected throughput (min-max normalization)
         state3 = np.reshape(state['UserCount'], [3, 1])
         state3_norm=state3/Usersnum # normalize with the total number of users
         MCS_t=np.array(state['MCSPen'])
@@ -212,6 +213,7 @@ if __name__ == "__main__":
 
             print("episode: {}/{}, step: {}".format(e+1, EPISODES, time))
             action_index = agent.act(state)
+            print(action_index)
             #Deconding CIO Action only
             action=np.base_repr(int(action_index/(p_level**m_cells))+int(a_level)**int(a_num),base=int(a_level))[-a_num:]# decoding the action index to the action vector
             action=[int(action[s]) for s in range(len(action))]
@@ -222,7 +224,7 @@ if __name__ == "__main__":
             #changing string into int 
             power_action=[int(power_action[s]) for s in range(len(power_action))]
             power_action=np.concatenate((np.zeros(m_cells-len(power_action)),power_action))
-            power_action=[20+power_step*s for s in (power_action)]#decoding power action
+            power_action=[30+power_step*s for s in (power_action)]#decoding power action
             action=np.concatenate((action,power_action))
             #sending action to enviroment
             next_state, reward, done, _ = env.step(action)
@@ -234,7 +236,7 @@ if __name__ == "__main__":
 
             state1 = np.reshape(next_state['rbUtil'], [3, 1])
             state2 = np.reshape(next_state['dlThroughput'],[3, 1])
-            state2_norm=state2/18
+            state2_norm=state2/Nf_s2
             state3 = np.reshape(next_state['UserCount'], [3, 1])
             state3_norm=state3/Usersnum
             MCS_t=np.array(next_state['MCSPen'])
