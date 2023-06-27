@@ -29,7 +29,7 @@ debug=True
 step_CIO=3 # CIO value step in the discrete set {-6, -3, 0, 3, 6}
 Result_row=[]
 Rew_ActIndx=[]
-power_step=3
+power_step=5
 Nf_s2=21
 MCS2CQI=np.array([1,2,3,3,3,4,4,5,5,6,6,6,7,7,8,8,8,9,9,9,10,10,10,11,11,12,12,13,14])# To map MCS indexes to CQI
 
@@ -109,12 +109,12 @@ class DDQNAgent:
             else:
                 a = self.model.predict(next_state)[0]
                 t = self.target_model.predict(next_state)[0] # DDQN feature
-
                 b =t[np.argmax(a)]#needs de_normalization
                 b *=self.Prev_std # denormalize the future reward by the mean and std of the previous mini-batch
                 b =+self.Prev_Mean # denormalized future reward
                 tg = reward + self.gamma * b  # 
                 tg -= mean_MB
+
                 tg /= std_MB #normalized target
                 self.Prev_std = std_MB
                 self.Prev_Mean= mean_MB
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     state_size = 12
     a_level=int(ac_space.high[0]) # CIO levels          
     a_num=int(ac_space.shape[0]) # number of required relative CIOs
-    p_level=int(2) #number of power levels per cell {30 , 33}
+    p_level=int(3) #number of power levels per cell {30,35,40}
     m_cells=int(3) #number of cells 
     action_size = a_level**a_num*p_level**m_cells
     agent = DDQNAgent(state_size, action_size)
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     #reading last Ep number
     try:
         x=open('Episode_num.txt','r')
-        last_ep=int(x.readline())
+        last_ep=int(x.readline())+1
         x.close()
     except:
         print("No last_episode file found")
@@ -220,7 +220,7 @@ if __name__ == "__main__":
             action=np.concatenate((np.zeros(a_num-len(action)),action),axis=None)
             action=[step_CIO*(x-np.floor(a_level/2)) for x in action]#action vector
             #Decoding Power_action
-            power_action=np.base_repr(int(action_index/25),base=p_level)
+            power_action=np.base_repr(action_index%(p_level**m_cells),base=p_level)
             #changing string into int 
             power_action=[int(power_action[s]) for s in range(len(power_action))]
             power_action=np.concatenate((np.zeros(m_cells-len(power_action)),power_action))
