@@ -18,6 +18,7 @@ from tensorflow import keras
 from ns3gym import ns3env                 #for interfacing NS-3 with RL
 from keras.layers import Dense, Dropout, Activation
 import csv
+import pickle
 EPISODES = 200
 port=1122 # Should be consistent with NS-3 simulation port
 stepTime=0.2
@@ -26,10 +27,11 @@ Usersnum=41
 seed=3
 simArgs = {}
 debug=True
+failed_ep=0
 step_CIO=3 # CIO value step in the discrete set {-6, -3, 0, 3, 6}
 Result_row=[]
 Rew_ActIndx=[]
-power_step=5
+power_step=3
 Nf_s2=21
 MCS2CQI=np.array([1,2,3,3,3,4,4,5,5,6,6,6,7,7,8,8,8,9,9,9,10,10,10,11,11,12,12,13,14])# To map MCS indexes to CQI
 
@@ -101,7 +103,9 @@ class DDQNAgent:
         
         mean_MB= np.mean(np.asarray(target_A), axis=0) #mean of the targets in this mini-batch
         std_MB= np.std(np.asarray(target_A), axis=0) # std of the targets in this mini-batch
-
+        if (std_MB==0):
+            std_MB=self.Prev_std # to avoid dividing by zero
+            print("zero std_MB detected")
         for state, action, reward, next_state, done in minibatch:
             target = self.model.predict(state)
             if done:
@@ -140,7 +144,7 @@ if __name__ == "__main__":
     state_size = 12
     a_level=int(ac_space.high[0]) # CIO levels          
     a_num=int(ac_space.shape[0]) # number of required relative CIOs
-    p_level=int(3) #number of power levels per cell {30,35,40}
+    p_level=int(1) #number of power levels per cell if this equals 1 NO power control 
     m_cells=int(3) #number of cells 
     action_size = a_level**a_num*p_level**m_cells
     agent = DDQNAgent(state_size, action_size)
@@ -180,7 +184,12 @@ if __name__ == "__main__":
         x.close()
     except:
         print("No last_episode file found")
-
+    try:
+        with open('exp_buffer.pkl','rb') as file:
+            agent.memory=pickle.load(file)
+        file.close()
+    except:
+        print("No_buffer_file")    
     for e in range(last_ep,EPISODES):
         state = env.reset()
         state1 = np.reshape(state['rbUtil'], [3, 1])
@@ -220,17 +229,22 @@ if __name__ == "__main__":
             action=np.concatenate((np.zeros(a_num-len(action)),action),axis=None)
             action=[step_CIO*(x-np.floor(a_level/2)) for x in action]#action vector
             #Decoding Power_action
-            power_action=np.base_repr(action_index%(p_level**m_cells),base=p_level)
-            #changing string into int 
-            power_action=[int(power_action[s]) for s in range(len(power_action))]
-            power_action=np.concatenate((np.zeros(m_cells-len(power_action)),power_action))
-            power_action=[30+power_step*s for s in (power_action)]#decoding power action
+            if p_level!= 1:
+                power_action=[np.base_repr(action_index%(p_level**m_cells),base=p_level)]
+                #changing string into int
+                power_action=[int(power_action[s]) for s in range(len(power_action))]
+                power_action=np.concatenate((np.zeros(m_cells-len(power_action)),power_action))
+                power_action=[20+power_step*s for s in (power_action)]
+            else:
+                power_action=[20,20,20]
+            #decoding power action
             action=np.concatenate((action,power_action))
             #sending action to enviroment
             next_state, reward, done, _ = env.step(action)
             if next_state is None:#To avoid crashing the simulation if the handover failiure occured in NS-3 simulation
                 OK=0 # Handover failiure occured
                 EPISODES=EPISODES+1
+                failed_ep+=1 #minus the episode
                 break
             OK=1 # No handover failiure occured
 
@@ -262,7 +276,6 @@ if __name__ == "__main__":
             next_state = np.reshape(next_state, [1, state_size])
             agent.remember(state, action_index, reward, next_state, done) # Add to the experience buffer
             state = next_state
-
             print("Step reward:{}".format(reward))
             print("current action:{}".format(action))
             #print("RB utilization:{}".format(np.transpose(state1)))
@@ -280,6 +293,7 @@ if __name__ == "__main__":
             rewardsum += reward
             cqisum+=AVG_CQI
             if len(agent.memory) > batch_size:
+                print("training")
                 loss = agent.replay(batch_size)
                 # Logging training loss every 10 timesteps
                 if time % 10 == 0:
@@ -292,11 +306,11 @@ if __name__ == "__main__":
             reward3_list.append(R_reward3)
             AVG_CQI_list.append(cqisum)
             agent.update_target_model()
-            if (e+1) % 10 == 0:
+            if (e+1-failed_ep) % 10 == 0:
                 agent.save("./LTE-DDQN.h5") # Save the model
                 #Saving episods
                 x=open('Episode_num.txt','w')
-                x.write(str(e))
+                x.write(str(e-failed_ep))
                 x.close()
                 #saving epsilon
                 x=open('Epsilon.txt','w')
@@ -319,7 +333,10 @@ if __name__ == "__main__":
                     Result_row=Result_row+AVG_CQI_list
                     results_writer.writerow(Result_row) 
                 rewardcsv.close()
-            
+                print("Saving_buffer")
+                with open('exp_buffer.pkl', 'wb') as file:
+                    pickle.dump(agent.memory,file)
+                file.close()
     reward1_list[:] = [x / max_env_steps for x in reward1_list]
     reward2_list[:] = [x / max_env_steps for x in reward2_list]
     reward3_list[:] = [x / max_env_steps for x in reward3_list]
