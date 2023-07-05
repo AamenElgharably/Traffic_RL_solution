@@ -230,7 +230,7 @@ if __name__ == "__main__":
             action=[step_CIO*(x-np.floor(a_level/2)) for x in action]#action vector
             #Decoding Power_action
             if p_level!= 1:
-                power_action=[np.base_repr(action_index%(p_level**m_cells),base=p_level)]
+                power_action=np.base_repr(action_index%(p_level**m_cells),base=p_level)
                 #changing string into int
                 power_action=[int(power_action[s]) for s in range(len(power_action))]
                 power_action=np.concatenate((np.zeros(m_cells-len(power_action)),power_action))
